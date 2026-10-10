@@ -1,0 +1,12 @@
+:root { color-scheme: light; --accent: #1d4ed8; --border: #d1d5db; }
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0 auto; max-width: 900px; padding: 1rem; }
+header h1 { margin: 0 0 .25rem; }
+table { border-collapse: collapse; width: 100%; margin: .5rem 0; }
+th, td { border: 1px solid var(--border); padding: .35rem .5rem; text-align: left; }
+th { background: #f3f4f6; }
+.error { color: #b91c1c; } .hint { background: #fef9c3; padding: .5rem; }
+button { cursor: pointer; }
+nav.tabs { display: flex; gap: .25rem; margin: 1rem 0; flex-wrap: wrap; }
+nav.tabs button.active { background: var(--accent); color: #fff; }
+@media print { header p, nav.tabs, form, .noprint { display: none; } }
