@@ -3,3 +3,4 @@
 *.xls
 *Kopie*
 .DS_Store
+node_modules/
