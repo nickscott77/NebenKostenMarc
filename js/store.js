@@ -25,7 +25,6 @@ function validate(state) {
   const tenantIds = new Set((state.tenants || []).map((t) => t.id));
   for (const g of state.garages || []) {
     if (!g.id || !g.label || !g.meterId) errs.push(`Garage unvollständig: ${JSON.stringify(g)}`);
-    if (!Number.isFinite(g.factor) || g.factor < 0) errs.push(`Faktor ungültig bei ${g.id}`);
   }
   for (const [name, ids] of [["Garage", (state.garages || []).map((g) => g.id)],
       ["Zähler", (state.garages || []).map((g) => g.meterId).concat(["central"])],

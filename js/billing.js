@@ -112,7 +112,8 @@ function billTenant(state, tenantId, fromISO, toISO) {
       }
       for (const c of yc.costs || []) {
         if (c.key === "nach-faktor") {
-          const share = (c.amount / (state.costDivisor || 14)) * g.factor * (days / daysInYear(y));
+          const liable = (state.garages || []).filter((gg) => !gg.shared).length || 1;
+          const share = (c.amount / liable) * (days / daysInYear(y));
           lines.push({ kind: "betriebskosten", garage: g.label, amount: round2(share), label: `${c.label} ${g.label} (${segFrom}–${yEnd})` });
         } else {
           hints.push(`Umlageschlüssel unbekannt: ${c.key} (${c.label})`);

@@ -52,12 +52,12 @@
 
   function vGaragen() {
     var rows = state.garages.map(function (g) {
-      return "<tr><td>" + esc(g.label) + "</td><td>" + esc(g.meterId) + "</td><td>" + esc(g.factor) +
-        "</td><td>" + esc(currentTenant(g.id)) + '</td><td class="noprint"><button data-del-garage="' + esc(g.id) + '">Löschen</button></td></tr>';
+      return "<tr><td>" + esc(g.label) + "</td><td>" + esc(g.meterId) + "</td>" +
+        "<td>" + esc(currentTenant(g.id)) + '</td><td class="noprint"><button data-del-garage="' + esc(g.id) + '">Löschen</button></td></tr>';
     }).join("");
-    return "<h2>Garagen</h2><table><tr><th>Garage</th><th>Zähler</th><th>Faktor</th><th>Mieter</th><th class='noprint'></th></tr>" +
+    return "<h2>Garagen</h2><table><tr><th>Garage</th><th>Zähler</th><th>Mieter</th><th class='noprint'></th></tr>" +
       rows + "</table><form id='f-garage' class='noprint'><input name='label' placeholder='Garage 15' required> " +
-      "<input name='meterId' placeholder='m-g15' required> <input name='factor' type='number' min='0' value='1' style='width:4em'> " +
+      "<input name='meterId' placeholder='m-g15' required> " +
       "<button>Anlegen</button></form>";
   }
 
@@ -167,7 +167,7 @@
       if (state.garages.some(function (g) { return g.label === label || g.meterId === meterId; })) {
         setMsg("Garage oder Zähler existiert bereits.", true); render(); return;
       }
-      state.garages.push({ id: uid("g"), label: label, meterId: meterId, factor: Number(fd.get("factor")) || 0 });
+      state.garages.push({ id: uid("g"), label: label, meterId: meterId });
       persist(); setMsg("Garage angelegt."); render();
     };
     app.querySelectorAll("[data-del-garage]").forEach(function (b) {
