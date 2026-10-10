@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { daysInclusive } from "../js/billing.js";
+import { daysInclusive, meterUsage, billTenant } from "../js/billing.js";
 import { loadState, validate, exportJson } from "../js/store.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -42,6 +42,43 @@ test("export round-trippt", () => {
   const s = loadState(seedRaw);
   const s2 = loadState(exportJson(s));
   eq(s2.garages.length, s.garages.length, "roundtrip ");
+});
+
+// --- Billing (Task 3) ---
+const demo = loadState(seedRaw);
+test("tage inklusiv", () => {
+  eq(daysInclusive("2025-01-01", "2025-12-31"), 365, "jahr ");
+  eq(daysInclusive("2025-06-01", "2025-06-01"), 1, "ein tag ");
+});
+test("zählerdifferenz ganzjährig", () => {
+  const u = meterUsage(demo.readings, "m-g1", "2025-01-01", "2025-12-31");
+  eq(u.kwh, 7.84, "g1 ");
+  eq(u.estimated, false, "exakt ");
+});
+test("sammelrechnung demo A = 19,26 €", () => {
+  const b = billTenant(demo, "t-demo-a", "2025-01-01", "2025-12-31");
+  eq(b.total, 19.26, "total ");
+  eq(b.lines.filter((l) => l.kind === "strom").length, 2, "stromzeilen ");
+});
+test("wechsel g3: B + C = ganzjahr ±1ct", () => {
+  const bB = billTenant(demo, "t-demo-b", "2025-01-01", "2025-06-30");
+  const bC = billTenant(demo, "t-demo-c", "2025-07-01", "2025-12-31");
+  const g3 = (b) => b.lines.filter((l) => l.garage === "Garage 3").reduce((s, l) => s + l.amount, 0);
+  const full = 57.91 * 0.33 + 100 / 14;
+  const diff = Math.abs(g3(bB) + g3(bC) - full);
+  eq(diff < 0.02, true, `diff ${diff} `);
+});
+test("fehlende ablesung wird markiert", () => {
+  const s = JSON.parse(exportJson(demo));
+  s.readings = s.readings.filter((r) => r.meterId !== "m-g2");
+  const b = billTenant(loadState(s), "t-demo-a", "2025-01-01", "2025-12-31");
+  eq(b.lines.find((l) => l.garage === "Garage 2").estimated, true, "schaetzung ");
+  eq(b.hints.length > 0, true, "hinweis ");
+});
+test("mieter ohne belegung = 0,00 €", () => {
+  const s = JSON.parse(exportJson(demo));
+  s.tenants.push({ id: "t-leer", firstName: "Leer", lastName: "Mieter" });
+  eq(billTenant(loadState(s), "t-leer", "2025-01-01", "2025-12-31").total, 0, "leer ");
 });
 
 console.log(`${passed + failed} tests, ${failed} failed`);
