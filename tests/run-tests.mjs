@@ -191,5 +191,16 @@ test("dom: vertauschter zeitraum zeigt fehler statt 0,00 €", () => {
   eq(w.document.querySelector(".error") !== null, true, "fehlerbox ");
 });
 
+test("mobil: media-query + ios-zoom-fix im stylesheet", () => {
+  const css = readFileSync(join(root, "css/style.css"), "utf8");
+  eq(css.includes("@media (max-width: 640px)"), true, "media query ");
+  eq(css.includes("input, select { font-size: 16px; }"), true, "ios zoom fix ");
+  eq(css.includes("table { display: block; overflow-x: auto; }"), true, "table scroll ");
+});
+test("mobil: stylesheet cache-bust aktuell (?v=4)", () => {
+  const html = readFileSync(join(root, "index.html"), "utf8");
+  eq(html.includes("css/style.css?v=4"), true, "cache bust ");
+});
+
 console.log(`${passed + failed} tests, ${failed} failed`);
 process.exit(failed ? 1 : 0);
