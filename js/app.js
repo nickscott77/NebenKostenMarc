@@ -39,13 +39,13 @@
   function render() {
     var app = document.getElementById("app");
     var errs = S.validate(state);
-    var h = '<nav class="tabs noprint">' + ["garagen", "mieter", "zaehler", "kosten", "abrechnung", "daten"]
+    var h = '<nav class="tabs noprint">' + ["garagen", "mieter", "zaehler", "kosten", "vermieter", "abrechnung", "daten"]
       .map(function (t) { return '<button data-tab="' + t + '"' + (t === tab ? ' class="active"' : "") + ">" +
-        { garagen: "Garagen", mieter: "Mieter", zaehler: "Zähler", kosten: "Kosten", abrechnung: "Abrechnung", daten: "Daten" }[t] + "</button>"; })
+        { garagen: "Garagen", mieter: "Mieter", zaehler: "Zähler", kosten: "Kosten", vermieter: "Vermieter", abrechnung: "Abrechnung", daten: "Daten" }[t] + "</button>"; })
       .join("") + "</nav>";
     if (errs.length) h += '<p class="error">Datenfehler: ' + esc(errs.join("; ")) + "</p>";
     if (msg) h += '<p class="' + (msgErr ? "error" : "") + '">' + esc(msg) + "</p>";
-    h += ({ garagen: vGaragen, mieter: vMieter, zaehler: vZaehler, kosten: vKosten, abrechnung: vAbrechnung, daten: vDaten })[tab]();
+    h += ({ garagen: vGaragen, mieter: vMieter, zaehler: vZaehler, kosten: vKosten, vermieter: vVermieter, abrechnung: vAbrechnung, daten: vDaten })[tab]();
     app.innerHTML = h;
     bind(app);
   }
@@ -125,6 +125,20 @@
       "Preis <input name='kwhPrice' type='number' step='0.001' min='0' value='0.33' style='width:5em'> <button>Jahr anlegen</button></form>";
   }
 
+  function vVermieter() {
+    var L = state.landlord || {}, BK = L.bank || {};
+    return "<h2>Vermieter</h2><p>Angaben erscheinen als Kopf- und Fußzeile auf der Abrechnung.</p>" +
+      "<form id='f-landlord' class='noprint'>" +
+      "<input name='name' placeholder='Name / Firma' value=\"" + esc(L.name || "") + "\" required> " +
+      "<input name='contact' placeholder='Kontakt (Anschrift · Telefon)' value=\"" + esc(L.contact || "") + "\" style='width:26em'> " +
+      "<input name='taxNote' placeholder='Steuernotiz' value=\"" + esc(L.taxNote || "") + "\" style='width:26em'><br>" +
+      "<input name='holder' placeholder='Kontoinhaber' value=\"" + esc(BK.holder || "") + "\"> " +
+      "<input name='iban' placeholder='IBAN' value=\"" + esc(BK.iban || "") + "\" style='width:19em'> " +
+      "<input name='bic' placeholder='BIC' value=\"" + esc(BK.bic || "") + "\"> " +
+      "<input name='bankName' placeholder='Bank' value=\"" + esc(BK.bankName || "") + "\"> " +
+      "<button>Speichern</button></form>";
+  }
+
   function vAbrechnung() {
     if (!billSel.tenant && state.tenants[0]) billSel.tenant = state.tenants[0].id;
     var tOpts = state.tenants.map(function (t) {
@@ -132,10 +146,15 @@
         esc(t.lastName) + ", " + esc(t.firstName) + "</option>";
     }).join("");
     var h = "<h2>Abrechnung (Sammelrechnung)</h2><form id='f-bill' class='noprint'><select name='tenant'>" + tOpts +
-      "</select> <input name='from' type='date' value='" + esc(billSel.from) + "'> <input name='to' type='date' value='" +
-      esc(billSel.to) + "'> <button>Berechnen</button> <button type='button' id='btn-print'>Drucken</button></form>";
+      "</select> <input name='from' type='date' value='" + esc(billSel.from) + "' required> <input name='to' type='date' value='" +
+      esc(billSel.to) + "' required> <button>Berechnen</button> <button type='button' id='btn-print'>Drucken</button></form>";
     if (billResult) {
-      var b = billResult;
+      var b = billResult, L = state.landlord || {}, BK = L.bank || {};
+      h += "<div class='invoice-head'><div class='invoice-landlord'><strong>" + esc(L.name || "—") + "</strong><br><small>" +
+        esc(L.contact || "") + "</small></div><div class='invoice-addr'>" +
+        esc(b.tenant.firstName + " " + b.tenant.lastName) + "<br>" +
+        esc((b.tenant.street || "") + " " + (b.tenant.houseNo || "")) + "<br>" +
+        esc((b.tenant.zip || "") + " " + (b.tenant.city || "")) + "</div></div>";
       h += "<h3>" + esc(b.tenant.lastName) + ", " + esc(b.tenant.firstName) + " · " + esc(b.period.from) + "–" + esc(b.period.to) +
         " (" + b.period.days + " Tage)</h3>";
       if (b.hints.length) h += '<div class="hint">' + b.hints.map(esc).join("<br>") + "</div>";
@@ -143,6 +162,9 @@
         return "<tr><td>" + esc(l.label) + (l.estimated ? " (Schätzung)" : "") + "</td><td>" +
           (l.kwh == null ? "" : esc(l.kwh)) + "</td><td>" + eur(l.amount) + "</td></tr>";
       }).join("") + "<tr><th>Rechnungsbetrag</th><th></th><th>" + eur(b.total) + "</th></tr></table>";
+      if (L.taxNote) h += '<p class="invoice-foot">' + esc(L.taxNote) + "</p>";
+      if (BK.holder || BK.iban) h += '<p class="invoice-foot">Zahlung: ' + esc(BK.holder || "") + " · IBAN " + esc(BK.iban || "") +
+        (BK.bic ? " · BIC " + esc(BK.bic) : "") + (BK.bankName ? " · " + esc(BK.bankName) : "") + "</p>";
     }
     return h;
   }
@@ -251,6 +273,23 @@
       state.years.push({ year: y, kwhPrice: Number(fd.get("kwhPrice")), baseFeeTotal: 0, costs: [], allocateShared: false });
       vKosten.year = y; persist(); setMsg("Jahr angelegt."); render();
     };
+    var fl = q("#f-landlord");
+    if (fl) fl.onsubmit = function (e) {
+      e.preventDefault();
+      var fd = new FormData(fl);
+      state.landlord = {
+        name: String(fd.get("name")).trim(),
+        contact: String(fd.get("contact")).trim(),
+        taxNote: String(fd.get("taxNote")).trim(),
+        bank: {
+          holder: String(fd.get("holder")).trim(),
+          iban: String(fd.get("iban")).trim(),
+          bic: String(fd.get("bic")).trim(),
+          bankName: String(fd.get("bankName")).trim()
+        }
+      };
+      persist(); setMsg("Vermieterdaten gespeichert."); render();
+    };
     var fb = q("#f-bill");
     if (fb) fb.onsubmit = function (e) {
       e.preventDefault();
@@ -267,7 +306,7 @@
       var blob = new Blob([S.exportJson(state)], { type: "application/json" });
       var a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "nebenkosten-" + (vKosten.year || "export") + ".json";
+      a.download = "nebenkosten-" + ((billSel.from || "").slice(0, 4) || vKosten.year || "export") + ".json";
       a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
     };
     var fi = q("#file-import");

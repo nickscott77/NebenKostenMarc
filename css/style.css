@@ -58,6 +58,10 @@ form { margin: .75rem 0; display: flex; gap: .4rem; flex-wrap: wrap; align-items
 .error { color: var(--danger); background: rgba(248, 113, 113, .1); border: 1px solid var(--danger); border-radius: 8px; padding: .5rem .75rem; }
 .hint { background: var(--warn-bg); color: var(--warn-text); border-radius: 8px; padding: .6rem .8rem; margin: .5rem 0; }
 small { color: var(--muted); }
+.invoice-head { display: flex; justify-content: space-between; gap: 1rem; margin: .5rem 0 .25rem; }
+.invoice-landlord strong { font-size: 1.05rem; }
+.invoice-addr { text-align: right; }
+.invoice-foot { color: var(--muted); font-size: .85rem; margin: .4rem 0 0; }
 @media print {
   :root { color-scheme: light; }
   body { background: #fff; color: #000; }
