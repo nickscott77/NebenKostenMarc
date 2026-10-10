@@ -120,11 +120,75 @@ test("unbekannter umlageschlüssel wird gemeldet", () => {
   const b = billTenant(loadState(s), "t-demo-a", "2025-01-01", "2025-12-31");
   eq(b.hints.some((h) => h.includes("pro-kwh")), true, "hint ");
 });
+test("zeitraum validierung: leere/vertauschte daten werfen", () => {
+  throws(() => billTenant(demo, "t-demo-a", "", "2025-12-31"), "leer ");
+  throws(() => billTenant(demo, "t-demo-a", "2025-12-31", "2025-01-01"), "vertauscht ");
+});
+test("doppelte ablesung (zaehler+datum) wird erkannt", () => {
+  const s = JSON.parse(exportJson(demo));
+  s.readings.push({ meterId: "m-g1", date: "2025-12-31", value: 8 });
+  eq(validate(s).some((e) => e.includes("doppelte Ablesung")), true, "validate ");
+  throws(() => loadState(s), "loadState ");
+});
 test("seed-data.js synchron mit seed-2025.json", () => {
   const gen = readFileSync(join(root, "js/seed-data.js"), "utf8");
   const m = gen.match(/^window\.NKM_SEED = (.*);$/s);
   eq(!!m, true, "format ");
   eq(JSON.stringify(JSON.parse(m[1])), JSON.stringify(JSON.parse(seedRaw)), "inhalt ");
+});
+
+// --- DOM-Smoke (jsdom): echtes index.html booten wie im Browser ---
+function bootPage() {
+  const { JSDOM } = require("jsdom");
+  const html = readFileSync(join(root, "index.html"), "utf8");
+  const dom = new JSDOM(html, { url: "http://localhost/", runScripts: "outside-only", pretendToBeVisual: true });
+  const w = dom.window;
+  for (const src of ["js/seed-data.js", "js/billing.js", "js/store.js", "js/app.js"]) {
+    w.eval(readFileSync(join(root, src), "utf8"));
+  }
+  if (w.document.readyState === "loading") {
+    w.document.dispatchEvent(new w.Event("DOMContentLoaded", { bubbles: true }));
+  }
+  return w;
+}
+function submitForm(w, form) {
+  form.dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+}
+test("dom: boot rendert 7 reiter, status bereit", () => {
+  const w = bootPage();
+  eq(w.document.querySelectorAll("nav.tabs button").length, 7, "reiter ");
+  eq(w.document.getElementById("app-status").textContent, "bereit", "status ");
+});
+test("dom: vermieter-tab formular + speichern in localStorage", () => {
+  const w = bootPage();
+  w.document.querySelector('[data-tab="vermieter"]').click();
+  const f = w.document.getElementById("f-landlord");
+  eq(!!f, true, "formular ");
+  f.querySelector('[name="name"]').value = "Neue Garagenvermietung";
+  submitForm(w, f);
+  const snap = JSON.parse(w.localStorage.getItem("nkm-v1"));
+  eq(snap.landlord.name, "Neue Garagenvermietung", "gespeichert ");
+});
+test("dom: sammelrechnung zeigt vermieterkopf + bankdaten", () => {
+  const w = bootPage();
+  w.document.querySelector('[data-tab="abrechnung"]').click();
+  const f = w.document.getElementById("f-bill");
+  f.querySelector('[name="from"]').value = "2025-01-01";
+  f.querySelector('[name="to"]').value = "2025-12-31";
+  submitForm(w, f);
+  const h = w.document.getElementById("app").innerHTML;
+  eq(h.includes("Garagenvermietung Muster"), true, "vermieterkopf ");
+  eq(h.includes("DE00 0000 0000 0000 0000 00"), true, "iban ");
+  eq(h.includes("Rechnungsbetrag"), true, "summe ");
+});
+test("dom: vertauschter zeitraum zeigt fehler statt 0,00 €", () => {
+  const w = bootPage();
+  w.document.querySelector('[data-tab="abrechnung"]').click();
+  const f = w.document.getElementById("f-bill");
+  f.querySelector('[name="from"]').value = "2025-12-31";
+  f.querySelector('[name="to"]').value = "2025-01-01";
+  submitForm(w, f);
+  eq(w.document.querySelector(".error") !== null, true, "fehlerbox ");
 });
 
 console.log(`${passed + failed} tests, ${failed} failed`);

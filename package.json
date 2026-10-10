@@ -1,0 +1,13 @@
+{
+  "name": "nebenkostenmarc",
+  "version": "1.0.0",
+  "description": "Lokale Webseite zur Nebenkostenabrechnung vermieteter Garagen (14 Garagen + Waschhaus).",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node tests/run-tests.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.2"
+  }
+}

@@ -29,7 +29,7 @@ function meterUsage(readings, meterId, fromISO, toISO, allowEstimate) {
   const rs = readings
     .filter((r) => r.meterId === meterId)
     .slice()
-    .sort((a, b) => (a.date < b.date ? -1 : 1));
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   const hints = [];
   let end = null;
   for (const r of rs) if (r.date <= toISO) end = r;
@@ -75,8 +75,16 @@ function findYear(state, y) {
   return (state.years || []).find((yy) => yy.year === y) || { year: y, kwhPrice: 0, baseFeeTotal: 0, costs: [], allocateShared: false };
 }
 
+const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 // Vollabrechnung eines Mieters (Sammelrechnung über alle seine Garagen).
 function billTenant(state, tenantId, fromISO, toISO) {
+  if (!ISO_RE.test(fromISO) || !ISO_RE.test(toISO)) {
+    throw new Error(`Zeitraum ungültig (YYYY-MM-DD erwartet): "${fromISO}"–"${toISO}"`);
+  }
+  if (fromISO > toISO) {
+    throw new Error(`Zeitraum ungültig: von (${fromISO}) nach bis (${toISO})`);
+  }
   const tenant = (state.tenants || []).find((t) => t.id === tenantId);
   if (!tenant) throw new Error(`unbekannter Mieter: ${tenantId}`);
   const lines = [];
