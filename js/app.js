@@ -28,7 +28,7 @@
   function currentTenant(garageId, date) {
     var d = date || "9999-12-31";
     var occ = (state.occupancy || []).filter(function (o) {
-      return o.garageId === garageId && o.from <= d && (o.to === null || o.to >= "0000-01-01");
+      return o.garageId === garageId && o.from <= d && (o.to === null || o.to >= d);
     });
     var last = occ.filter(function (o) { return o.to === null; })[0] || occ[occ.length - 1];
     if (!last) return "–";
@@ -52,7 +52,7 @@
 
   function vGaragen() {
     var rows = state.garages.map(function (g) {
-      return "<tr><td>" + esc(g.label) + "</td><td>" + esc(g.meterId) + "</td><td>" + g.factor +
+      return "<tr><td>" + esc(g.label) + "</td><td>" + esc(g.meterId) + "</td><td>" + esc(g.factor) +
         "</td><td>" + esc(currentTenant(g.id)) + '</td><td class="noprint"><button data-del-garage="' + esc(g.id) + '">Löschen</button></td></tr>';
     }).join("");
     return "<h2>Garagen</h2><table><tr><th>Garage</th><th>Zähler</th><th>Faktor</th><th>Mieter</th><th class='noprint'></th></tr>" +
@@ -66,8 +66,8 @@
       var occ = (state.occupancy || []).filter(function (o) { return o.tenantId === t.id; });
       var gs = occ.map(function (o) {
         var g = state.garages.filter(function (x) { return x.id === o.garageId; })[0];
-        return esc(g ? g.label : o.garageId) + " (" + o.from + "–" + (o.to || "…") +
-          ') <button data-del-occ="' + esc(o.garageId + "|" + o.tenantId + "|" + o.from) + '">×</button>';
+        return esc(g ? g.label : o.garageId) + " (" + esc(o.from) + "–" + esc(o.to || "…") +
+          ') <button data-del-occ="' + esc(o.garageId + "|" + o.tenantId + "|" + o.from + "|" + (o.to || "")) + '">×</button>';
       }).join("<br>");
       return "<tr><td>" + esc(t.lastName) + ", " + esc(t.firstName) + "<br><small>" + esc(t.street || "") + " " +
         esc(t.houseNo || "") + ", " + esc(t.zip || "") + " " + esc(t.city || "") + "</small></td><td>" + gs +
@@ -94,7 +94,7 @@
     var rs = state.readings.filter(function (r) { return r.meterId === sel; })
       .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
     var rows = rs.map(function (r) {
-      return "<tr><td>" + r.date + "</td><td>" + r.value + "</td></tr>";
+      return "<tr><td>" + esc(r.date) + "</td><td>" + esc(r.value) + "</td></tr>";
     }).join("");
     var opts = meters.map(function (m) {
       return "<option" + (m === sel ? " selected" : "") + ">" + esc(m) + "</option>";
@@ -113,11 +113,11 @@
     }).join("");
     var yc = state.years.filter(function (yy) { return yy.year === y; })[0] || { kwhPrice: 0, baseFeeTotal: 0, costs: [] };
     var rows = (yc.costs || []).map(function (c, i) {
-      return "<tr><td>" + c.date + "</td><td>" + esc(c.label) + "</td><td>" + eur(c.amount) + "</td><td>" + esc(c.key) +
+      return "<tr><td>" + esc(c.date) + "</td><td>" + esc(c.label) + "</td><td>" + eur(c.amount) + "</td><td>" + esc(c.key) +
         '</td><td class="noprint"><button data-del-cost="' + y + "|" + i + '">×</button></td></tr>';
     }).join("");
     return "<h2>Kosten</h2><label class='noprint'>Jahr <select id='year-sel'>" + yOpts + "</select></label> " +
-      "<span>Preis: " + yc.kwhPrice + " €/kWh · Grundgebühr gesamt: " + eur(yc.baseFeeTotal || 0) + "</span>" +
+      "<span>Preis: " + esc(yc.kwhPrice) + " €/kWh · Grundgebühr gesamt: " + eur(yc.baseFeeTotal || 0) + "</span>" +
       "<table><tr><th>Datum</th><th>Artikel</th><th>Summe</th><th>Schlüssel</th><th class='noprint'></th></tr>" + rows +
       "</table><form id='f-cost' class='noprint'><input name='date' type='date' required> <input name='label' placeholder='Artikel' required> " +
       "<input name='amount' type='number' step='0.01' min='0' required> <select name='key'><option>nach-faktor</option></select> " +
@@ -132,16 +132,16 @@
         esc(t.lastName) + ", " + esc(t.firstName) + "</option>";
     }).join("");
     var h = "<h2>Abrechnung (Sammelrechnung)</h2><form id='f-bill' class='noprint'><select name='tenant'>" + tOpts +
-      "</select> <input name='from' type='date' value='" + billSel.from + "'> <input name='to' type='date' value='" +
-      billSel.to + "'> <button>Berechnen</button> <button type='button' id='btn-print'>Drucken</button></form>";
+      "</select> <input name='from' type='date' value='" + esc(billSel.from) + "'> <input name='to' type='date' value='" +
+      esc(billSel.to) + "'> <button>Berechnen</button> <button type='button' id='btn-print'>Drucken</button></form>";
     if (billResult) {
       var b = billResult;
-      h += "<h3>" + esc(b.tenant.lastName) + ", " + esc(b.tenant.firstName) + " · " + b.period.from + "–" + b.period.to +
+      h += "<h3>" + esc(b.tenant.lastName) + ", " + esc(b.tenant.firstName) + " · " + esc(b.period.from) + "–" + esc(b.period.to) +
         " (" + b.period.days + " Tage)</h3>";
       if (b.hints.length) h += '<div class="hint">' + b.hints.map(esc).join("<br>") + "</div>";
       h += "<table><tr><th>Position</th><th>kWh</th><th>€</th></tr>" + b.lines.map(function (l) {
         return "<tr><td>" + esc(l.label) + (l.estimated ? " (Schätzung)" : "") + "</td><td>" +
-          (l.kwh == null ? "" : l.kwh) + "</td><td>" + eur(l.amount) + "</td></tr>";
+          (l.kwh == null ? "" : esc(l.kwh)) + "</td><td>" + eur(l.amount) + "</td></tr>";
       }).join("") + "<tr><th>Rechnungsbetrag</th><th></th><th>" + eur(b.total) + "</th></tr></table>";
     }
     return h;
@@ -175,6 +175,8 @@
         var id = b.getAttribute("data-del-garage");
         if ((state.occupancy || []).some(function (o) { return o.garageId === id; })) { setMsg("Belegte Garage kann nicht gelöscht werden.", true); render(); return; }
         var g = state.garages.filter(function (x) { return x.id === id; })[0];
+        var n = state.readings.filter(function (r) { return g && r.meterId === g.meterId; }).length;
+        if (!confirm("Garage inkl. " + n + " Zählerständen wirklich löschen?")) return;
         state.readings = state.readings.filter(function (r) { return r.meterId !== (g && g.meterId); });
         state.garages = state.garages.filter(function (x) { return x.id !== id; });
         persist(); setMsg("Garage gelöscht."); render();
@@ -211,7 +213,9 @@
     app.querySelectorAll("[data-del-occ]").forEach(function (b) {
       b.onclick = function () {
         var p = b.getAttribute("data-del-occ").split("|");
-        state.occupancy = state.occupancy.filter(function (o) { return !(o.garageId === p[0] && o.tenantId === p[1] && o.from === p[2]); });
+        state.occupancy = state.occupancy.filter(function (o) {
+          return !(o.garageId === p[0] && o.tenantId === p[1] && o.from === p[2] && (o.to || "") === (p[3] || ""));
+        });
         persist(); setMsg("Belegung entfernt."); render();
       };
     });

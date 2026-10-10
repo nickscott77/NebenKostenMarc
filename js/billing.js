@@ -17,11 +17,15 @@ function daysInclusive(fromISO, toISO) {
   return Math.round((parseISO(toISO) - parseISO(fromISO)) / DAY_MS) + 1;
 }
 
+function prevDayISO(iso) {
+  return new Date(parseISO(iso) - DAY_MS).toISOString().slice(0, 10);
+}
+
 // Verbrauch eines Zählers im Zeitraum.
-// start = letzte Ablesung mit Datum <= from (Ablesung exakt am Anfang zählt);
-// fehlt sie, wird ab 0 gerechnet (hint). end = letzte Ablesung <= to;
-// fehlt sie, kwh 0 + hint. Keine Interpolation — Hinweise machen das sichtbar.
-function meterUsage(readings, meterId, fromISO, toISO) {
+// Exakt nur mit Ablesung am Anfang (Tag selbst oder Vortag = Stichtag) UND am Ende;
+// sonst Schätzung = Jahresverbrauch × Tage/365 (gekennzeichnet). Keine Interpolation.
+function meterUsage(readings, meterId, fromISO, toISO, allowEstimate) {
+  if (allowEstimate === undefined) allowEstimate = true;
   const rs = readings
     .filter((r) => r.meterId === meterId)
     .slice()
@@ -35,15 +39,30 @@ function meterUsage(readings, meterId, fromISO, toISO) {
   }
   let start = null;
   for (const r of rs) if (r.date <= fromISO) start = r;
-  let estimated = false;
-  let startValue = 0;
-  if (!start) {
-    estimated = true;
-    hints.push(`kein Anfangsstand für ${meterId} ab ${fromISO}, ab 0 gerechnet`);
-  } else {
-    startValue = start.value;
+  const startOK = !!start && (start.date === fromISO || start.date === prevDayISO(fromISO));
+  const endOK = end.date === toISO;
+  const diff = end.value - (start ? start.value : 0);
+  if (diff < 0) {
+    hints.push(`fallender Zählerstand bei ${meterId} (${start ? start.date : "?"}→${end.date}) — bitte prüfen`);
+    return { kwh: 0, fromReading: start, toReading: end, estimated: true, hints };
   }
-  return { kwh: end.value - startValue, fromReading: start, toReading: end, estimated, hints };
+  if ((startOK && endOK) || !allowEstimate) {
+    const exact = startOK && endOK && !!start;
+    const out = hints.slice();
+    if (!start) out.push(`kein Anfangsstand für ${meterId} ab ${fromISO}, ab 0 gerechnet`);
+    else if (!exact && !allowEstimate) out.push(`Referenz unvollständig (${meterId} ${fromISO}–${toISO})`);
+    return { kwh: diff, fromReading: start, toReading: end, estimated: !exact, hints: out };
+  }
+  // Schätzung über Jahresreferenz (exakt bestimmbar, keine Rekursion).
+  const y = yearOf(fromISO);
+  const ref = meterUsage(readings, meterId, `${y}-01-01`, `${y}-12-31`, false);
+  const segDays = daysInclusive(fromISO, toISO);
+  if (!ref.estimated && ref.kwh >= 0) {
+    hints.push(`keine Stichtagsablesung (${meterId} ${fromISO}–${toISO}), zeitanteilig geschätzt`);
+    return { kwh: (ref.kwh * segDays) / daysInYear(y), fromReading: start, toReading: end, estimated: true, hints };
+  }
+  hints.push(`keine Stichtagsablesung und keine Jahresreferenz (${meterId}), Differenz verwendet — bitte prüfen`);
+  return { kwh: diff, fromReading: start, toReading: end, estimated: true, hints };
 }
 
 function yearOf(iso) {

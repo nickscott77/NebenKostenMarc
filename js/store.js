@@ -25,7 +25,12 @@ function validate(state) {
   const tenantIds = new Set((state.tenants || []).map((t) => t.id));
   for (const g of state.garages || []) {
     if (!g.id || !g.label || !g.meterId) errs.push(`Garage unvollständig: ${JSON.stringify(g)}`);
-    if (typeof g.factor !== "number" || g.factor < 0) errs.push(`Faktor ungültig bei ${g.id}`);
+    if (!Number.isFinite(g.factor) || g.factor < 0) errs.push(`Faktor ungültig bei ${g.id}`);
+  }
+  for (const [name, ids] of [["Garage", (state.garages || []).map((g) => g.id)],
+      ["Zähler", (state.garages || []).map((g) => g.meterId).concat(["central"])],
+      ["Mieter", (state.tenants || []).map((t) => t.id)]]) {
+    if (new Set(ids).size !== ids.length) errs.push(`doppelte ${name}-ID`);
   }
   // Belegungen: bekannte IDs, Datumsformat, keine Überlappung je Garage.
   const byGarage = {};
@@ -46,15 +51,26 @@ function validate(state) {
       if (list[i].from <= prevEnd) errs.push(`Überlappung bei ${gid}: ${list[i - 1].from}–${list[i - 1].to} vs ${list[i].from}`);
     }
   }
+  const knownMeters = new Set((state.garages || []).map((g) => g.meterId).concat(["central"]));
+  const byMeter = {};
   for (const r of state.readings || []) {
-    if (!r.meterId || !isISODate(r.date) || typeof r.value !== "number" || r.value < 0) {
+    if (!knownMeters.has(r.meterId)) errs.push(`unbekannter Zähler: ${r.meterId}`);
+    if (!isISODate(r.date) || !Number.isFinite(r.value) || r.value < 0) {
       errs.push(`Ablesung ungültig: ${JSON.stringify(r)}`);
+    }
+    (byMeter[r.meterId] = byMeter[r.meterId] || []).push(r);
+  }
+  for (const mid of Object.keys(byMeter)) {
+    const list = byMeter[mid].slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+    for (let i = 1; i < list.length; i++) {
+      if (list[i].value < list[i - 1].value) errs.push(`fallender Zählerstand ${mid}: ${list[i - 1].date}→${list[i].date}`);
     }
   }
   for (const y of state.years || []) {
-    if (typeof y.kwhPrice !== "number" || y.kwhPrice < 0) errs.push(`kwhPrice ungültig (${y.year})`);
+    if (!Number.isFinite(y.kwhPrice) || y.kwhPrice < 0) errs.push(`kwhPrice ungültig (${y.year})`);
+    if (y.baseFeeTotal != null && (!Number.isFinite(y.baseFeeTotal) || y.baseFeeTotal < 0)) errs.push(`Grundgebühr ungültig (${y.year})`);
     for (const c of y.costs || []) {
-      if (typeof c.amount !== "number" || !isISODate(c.date)) errs.push(`Kostenposten ungültig: ${c.label}`);
+      if (!Number.isFinite(c.amount) || c.amount < 0 || !isISODate(c.date)) errs.push(`Kostenposten ungültig: ${c.label}`);
     }
   }
   return errs;

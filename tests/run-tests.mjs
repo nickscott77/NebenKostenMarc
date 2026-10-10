@@ -83,6 +83,43 @@ test("mieter ohne belegung = 0,00 €", () => {
   eq(billTenant(loadState(s), "t-leer", "2025-01-01", "2025-12-31").total, 0, "leer ");
 });
 
+test("wechsel OHNE stichtag: schätzung, B + C ≈ ganzjahr", () => {
+  const s = JSON.parse(exportJson(demo));
+  s.readings = s.readings.filter((r) => !(r.meterId === "m-g3" && r.date === "2025-06-30"));
+  const st = loadState(s);
+  const bB = billTenant(st, "t-demo-b", "2025-01-01", "2025-06-30");
+  const bC = billTenant(st, "t-demo-c", "2025-07-01", "2025-12-31");
+  const g3 = (b) => b.lines.filter((l) => l.garage === "Garage 3");
+  eq(g3(bB).every((l) => l.kind !== "strom" || l.estimated), true, "B geschaetzt ");
+  eq(g3(bC).every((l) => l.kind !== "strom" || l.estimated), true, "C geschaetzt ");
+  const sum = g3(bB).concat(g3(bC)).reduce((t, l) => t + l.amount, 0);
+  const full = 57.91 * 0.33 + 100 / 14;
+  eq(Math.abs(sum - full) < 0.05, true, `sum ${sum} vs ${full} `);
+});
+test("fallender zählerstand wird erkannt", () => {
+  const s = JSON.parse(exportJson(demo));
+  s.readings.push({ meterId: "m-g1", date: "2026-01-01", value: 5 });
+  eq(validate(s).some((e) => e.includes("fallender")), true, "validate ");
+  const u = meterUsage(s.readings, "m-g1", "2025-12-31", "2026-01-01");
+  eq(u.estimated, true, "flag ");
+  eq(u.kwh, 0, "kein negativ ");
+});
+test("grundgebühr wird umgelegt", () => {
+  const s = JSON.parse(exportJson(demo));
+  s.years[0].baseFeeTotal = 150;
+  const b = billTenant(loadState(s), "t-demo-a", "2025-01-01", "2025-12-31");
+  eq(b.lines.filter((l) => l.kind === "grundgebuehr").length, 2, "zeilen ");
+  eq(b.lines.filter((l) => l.kind === "grundgebuehr").reduce((t, l) => t + l.amount, 0), 20, "10+10 ");
+});
+test("schaltjahr hat 366 tage", () => {
+  eq(daysInclusive("2024-01-01", "2024-12-31"), 366, "2024 ");
+});
+test("unbekannter umlageschlüssel wird gemeldet", () => {
+  const s = JSON.parse(exportJson(demo));
+  s.years[0].costs.push({ date: "2025-05-01", label: "X", amount: 50, key: "pro-kwh" });
+  const b = billTenant(loadState(s), "t-demo-a", "2025-01-01", "2025-12-31");
+  eq(b.hints.some((h) => h.includes("pro-kwh")), true, "hint ");
+});
 test("seed-data.js synchron mit seed-2025.json", () => {
   const gen = readFileSync(join(root, "js/seed-data.js"), "utf8");
   const m = gen.match(/^window\.NKM_SEED = (.*);$/s);

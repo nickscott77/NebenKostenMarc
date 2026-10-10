@@ -10,4 +10,6 @@ Lokale Webseite zur Nebenkostenabrechnung vermieteter Garagen (14 Garagen + Wasc
 - Tests: `node tests/run-tests.mjs` (Erwartung: `0 failed`), Syntax: `node --check js/*.js`.
 - Abrechnungsregeln: Tage inklusiv, Strom nach Zählerdifferenz, Betriebskosten `Betrag/14 × Faktor × Tage/365`,
   Anlage trägt der Vermieter, Sammelrechnung pro Mieter, Schätzung bei fehlender Stichtagsablesung (gekennzeichnet).
+- Rundung: pro Zeile auf Cent; Summe aus gerundeten Zeilen. Referenz Garage 2/2025 = 2,39 € + 7,14 € = **9,53 €**
+  (9,54 € ergäbe nur ungerundetes Addieren — kein Bug).
 - Datenschutz: Keine echten Mieter-/Bankdaten committen. Keine XLSX ins Repo (`.gitignore`: `*.xlsx`, `.env`).
