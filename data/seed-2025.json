@@ -1,0 +1,397 @@
+{
+  "baseFeeDivisor": 15,
+  "garages": [
+    {
+      "id": "g1",
+      "label": "Garage 1",
+      "meterId": "m-g1"
+    },
+    {
+      "id": "g2",
+      "label": "Garage 2",
+      "meterId": "m-g2"
+    },
+    {
+      "id": "g3",
+      "label": "Garage 3",
+      "meterId": "m-g3"
+    },
+    {
+      "id": "g4",
+      "label": "Garage 4",
+      "meterId": "m-g4"
+    },
+    {
+      "id": "g5",
+      "label": "Garage 5",
+      "meterId": "m-g5"
+    },
+    {
+      "id": "g6",
+      "label": "Garage 6",
+      "meterId": "m-g6"
+    },
+    {
+      "id": "g7",
+      "label": "Garage 7",
+      "meterId": "m-g7"
+    },
+    {
+      "id": "g8",
+      "label": "Garage 8",
+      "meterId": "m-g8"
+    },
+    {
+      "id": "g9",
+      "label": "Garage 9",
+      "meterId": "m-g9"
+    },
+    {
+      "id": "g10",
+      "label": "Garage 10",
+      "meterId": "m-g10"
+    },
+    {
+      "id": "g11",
+      "label": "Garage 11",
+      "meterId": "m-g11"
+    },
+    {
+      "id": "g12",
+      "label": "Garage 12",
+      "meterId": "m-g12"
+    },
+    {
+      "id": "g13",
+      "label": "Garage 13",
+      "meterId": "m-g13"
+    },
+    {
+      "id": "g14",
+      "label": "Garage 14",
+      "meterId": "m-g14"
+    },
+    {
+      "id": "wash",
+      "label": "Waschhaus",
+      "meterId": "m-wash",
+      "shared": true
+    }
+  ],
+  "landlord": {
+    "bank": {
+      "bankName": "DKB",
+      "bic": "XXXXXXXXXXX",
+      "holder": "Max Mustermann",
+      "iban": "DE00 0000 0000 0000 0000 00"
+    },
+    "contact": "Muster Vermieter · Musterstr. 1 · 00000 Musterstadt",
+    "name": "Garagenvermietung Muster",
+    "taxNote": "Kleinunternehmen – keine Umsatzsteuer."
+  },
+  "occupancy": [
+    {
+      "from": "2025-01-01",
+      "garageId": "g1",
+      "tenantId": "t-demo-a",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g2",
+      "tenantId": "t-demo-a",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g3",
+      "tenantId": "t-demo-b",
+      "to": "2025-06-30"
+    },
+    {
+      "from": "2025-07-01",
+      "garageId": "g3",
+      "tenantId": "t-demo-c",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g4",
+      "tenantId": "t-demo-b",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g5",
+      "tenantId": "t-demo-b",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g6",
+      "tenantId": "t-demo-b",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g7",
+      "tenantId": "t-demo-b",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g8",
+      "tenantId": "t-demo-c",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g9",
+      "tenantId": "t-demo-c",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g10",
+      "tenantId": "t-demo-c",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g11",
+      "tenantId": "t-demo-c",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g12",
+      "tenantId": "t-demo-c",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g13",
+      "tenantId": "t-demo-c",
+      "to": null
+    },
+    {
+      "from": "2025-01-01",
+      "garageId": "g14",
+      "tenantId": "t-demo-c",
+      "to": null
+    }
+  ],
+  "readings": [
+    {
+      "date": "2025-01-01",
+      "meterId": "central",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "central",
+      "value": 1008.64
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g1",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g1",
+      "value": 7.84
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g2",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g2",
+      "value": 7.25
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g3",
+      "value": 0
+    },
+    {
+      "date": "2025-06-30",
+      "meterId": "m-g3",
+      "value": 28.0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g3",
+      "value": 57.91
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g4",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g4",
+      "value": 9.12
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g5",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g5",
+      "value": 43.42
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g6",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g6",
+      "value": 0
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g7",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g7",
+      "value": 0
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g8",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g8",
+      "value": 66.6
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g9",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g9",
+      "value": 9.32
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g10",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g10",
+      "value": 0.48
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g11",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g11",
+      "value": 6.78
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g12",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g12",
+      "value": 10.4
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g13",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g13",
+      "value": 9.65
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-g14",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-g14",
+      "value": 384.22
+    },
+    {
+      "date": "2025-01-01",
+      "meterId": "m-wash",
+      "value": 0
+    },
+    {
+      "date": "2025-12-31",
+      "meterId": "m-wash",
+      "value": 0
+    }
+  ],
+  "schemaVersion": 1,
+  "tenants": [
+    {
+      "city": "Musterstadt",
+      "firstName": "Demo",
+      "houseNo": "1",
+      "id": "t-demo-a",
+      "lastName": "Mieter A",
+      "street": "Musterstr.",
+      "zip": "00000"
+    },
+    {
+      "city": "Musterstadt",
+      "firstName": "Demo",
+      "houseNo": "2",
+      "id": "t-demo-b",
+      "lastName": "Mieter B",
+      "street": "Musterstr.",
+      "zip": "00000"
+    },
+    {
+      "city": "Musterstadt",
+      "firstName": "Demo",
+      "houseNo": "3",
+      "id": "t-demo-c",
+      "lastName": "Mieter C",
+      "street": "Musterstr.",
+      "zip": "00000"
+    }
+  ],
+  "years": [
+    {
+      "allocateShared": false,
+      "baseFeeTotal": 0,
+      "costs": [
+        {
+          "amount": 100.0,
+          "date": "2025-04-17",
+          "key": "nach-faktor",
+          "label": "Überwachung"
+        }
+      ],
+      "kwhPrice": 0.33,
+      "year": 2025
+    }
+  ]
+}
