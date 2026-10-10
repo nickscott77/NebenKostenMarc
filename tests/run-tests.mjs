@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { daysInclusive, meterUsage, billTenant } from "../js/billing.js";
-import { loadState, validate, exportJson } from "../js/store.js";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const { daysInclusive, meterUsage, billTenant } = require("../js/billing.js");
+const { loadState, validate, exportJson } = require("../js/store.js");
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const seedRaw = readFileSync(join(root, "data/seed-2025.json"), "utf8");
@@ -79,6 +81,13 @@ test("mieter ohne belegung = 0,00 €", () => {
   const s = JSON.parse(exportJson(demo));
   s.tenants.push({ id: "t-leer", firstName: "Leer", lastName: "Mieter" });
   eq(billTenant(loadState(s), "t-leer", "2025-01-01", "2025-12-31").total, 0, "leer ");
+});
+
+test("seed-data.js synchron mit seed-2025.json", () => {
+  const gen = readFileSync(join(root, "js/seed-data.js"), "utf8");
+  const m = gen.match(/^window\.NKM_SEED = (.*);$/s);
+  eq(!!m, true, "format ");
+  eq(JSON.stringify(JSON.parse(m[1])), JSON.stringify(JSON.parse(seedRaw)), "inhalt ");
 });
 
 console.log(`${passed + failed} tests, ${failed} failed`);

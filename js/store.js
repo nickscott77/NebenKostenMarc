@@ -1,5 +1,5 @@
 // State-Verwaltung (DOM-frei; localStorage/download nur im Browser).
-export const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 1;
 const LS_KEY = "nkm-v1";
 
 function isISODate(s) {
@@ -7,7 +7,7 @@ function isISODate(s) {
 }
 
 // Akzeptiert Objekt oder JSON-String. Wirft bei falscher schemaVersion.
-export function loadState(input) {
+function loadState(input) {
   const state = typeof input === "string" ? JSON.parse(input) : input;
   if (!state || state.schemaVersion !== SCHEMA_VERSION) {
     throw new Error(`schemaVersion ${state && state.schemaVersion} wird nicht unterstützt (erwartet ${SCHEMA_VERSION})`);
@@ -18,7 +18,7 @@ export function loadState(input) {
 }
 
 // Gibt Array von Fehlerstrings zurück ([] = ok).
-export function validate(state) {
+function validate(state) {
   const errs = [];
   if (!state || typeof state !== "object") return ["kein State-Objekt"];
   const garageIds = new Set((state.garages || []).map((g) => g.id));
@@ -61,17 +61,17 @@ export function validate(state) {
 }
 
 // Reiner JSON-Export (String). Datei-Download passiert in app.js.
-export function exportJson(state) {
+function exportJson(state) {
   return JSON.stringify(state, null, 2);
 }
 
 // Browser-Persistenz (no-op ohne window, damit Node-Tests laufen).
-export function saveSnapshot(state) {
+function saveSnapshot(state) {
   if (typeof window === "undefined" || !window.localStorage) return false;
   window.localStorage.setItem(LS_KEY, exportJson(state));
   return true;
 }
-export function loadSnapshot() {
+function loadSnapshot() {
   if (typeof window === "undefined" || !window.localStorage) return null;
   const raw = window.localStorage.getItem(LS_KEY);
   return raw ? loadState(raw) : null;
@@ -80,4 +80,7 @@ export function loadSnapshot() {
 if (typeof window !== "undefined") {
   window.NKM = window.NKM || {};
   window.NKM.store = { loadState, validate, exportJson, saveSnapshot, loadSnapshot, SCHEMA_VERSION };
+}
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { loadState, validate, exportJson, saveSnapshot, loadSnapshot, SCHEMA_VERSION };
 }

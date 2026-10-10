@@ -8,12 +8,12 @@ function parseISO(s) {
 function nextDayISO(t) {
   return new Date(t + DAY_MS).toISOString().slice(0, 10);
 }
-export function round2(x) {
+function round2(x) {
   return Math.round(x * 100) / 100;
 }
 
 // Tage inklusiv: daysInclusive('2025-01-01','2025-12-31') === 365.
-export function daysInclusive(fromISO, toISO) {
+function daysInclusive(fromISO, toISO) {
   return Math.round((parseISO(toISO) - parseISO(fromISO)) / DAY_MS) + 1;
 }
 
@@ -21,7 +21,7 @@ export function daysInclusive(fromISO, toISO) {
 // start = letzte Ablesung mit Datum <= from (Ablesung exakt am Anfang zählt);
 // fehlt sie, wird ab 0 gerechnet (hint). end = letzte Ablesung <= to;
 // fehlt sie, kwh 0 + hint. Keine Interpolation — Hinweise machen das sichtbar.
-export function meterUsage(readings, meterId, fromISO, toISO) {
+function meterUsage(readings, meterId, fromISO, toISO) {
   const rs = readings
     .filter((r) => r.meterId === meterId)
     .slice()
@@ -57,7 +57,7 @@ function findYear(state, y) {
 }
 
 // Vollabrechnung eines Mieters (Sammelrechnung über alle seine Garagen).
-export function billTenant(state, tenantId, fromISO, toISO) {
+function billTenant(state, tenantId, fromISO, toISO) {
   const tenant = (state.tenants || []).find((t) => t.id === tenantId);
   if (!tenant) throw new Error(`unbekannter Mieter: ${tenantId}`);
   const lines = [];
@@ -116,4 +116,7 @@ export function billTenant(state, tenantId, fromISO, toISO) {
 if (typeof window !== "undefined") {
   window.NKM = window.NKM || {};
   window.NKM.billing = { daysInclusive, meterUsage, billTenant, round2 };
+}
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { daysInclusive, meterUsage, billTenant, round2 };
 }
