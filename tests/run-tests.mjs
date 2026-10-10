@@ -120,6 +120,16 @@ test("unbekannter umlageschlüssel wird gemeldet", () => {
   const b = billTenant(loadState(s), "t-demo-a", "2025-01-01", "2025-12-31");
   eq(b.hints.some((h) => h.includes("pro-kwh")), true, "hint ");
 });
+test("zeitraum validierung: leere/vertauschte daten werfen", () => {
+  throws(() => billTenant(demo, "t-demo-a", "", "2025-12-31"), "leer ");
+  throws(() => billTenant(demo, "t-demo-a", "2025-12-31", "2025-01-01"), "vertauscht ");
+});
+test("doppelte ablesung (zaehler+datum) wird erkannt", () => {
+  const s = JSON.parse(exportJson(demo));
+  s.readings.push({ meterId: "m-g1", date: "2025-12-31", value: 8 });
+  eq(validate(s).some((e) => e.includes("doppelte Ablesung")), true, "validate ");
+  throws(() => loadState(s), "loadState ");
+});
 test("seed-data.js synchron mit seed-2025.json", () => {
   const gen = readFileSync(join(root, "js/seed-data.js"), "utf8");
   const m = gen.match(/^window\.NKM_SEED = (.*);$/s);

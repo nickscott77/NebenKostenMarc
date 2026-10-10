@@ -44,7 +44,7 @@ function validate(state) {
     (byGarage[o.garageId] = byGarage[o.garageId] || []).push(o);
   }
   for (const gid of Object.keys(byGarage)) {
-    const list = byGarage[gid].slice().sort((a, b) => (a.from < b.from ? -1 : 1));
+    const list = byGarage[gid].slice().sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
     for (let i = 1; i < list.length; i++) {
       const prevEnd = list[i - 1].to || "9999-12-31";
       if (list[i].from <= prevEnd) errs.push(`Überlappung bei ${gid}: ${list[i - 1].from}–${list[i - 1].to} vs ${list[i].from}`);
@@ -60,9 +60,10 @@ function validate(state) {
     (byMeter[r.meterId] = byMeter[r.meterId] || []).push(r);
   }
   for (const mid of Object.keys(byMeter)) {
-    const list = byMeter[mid].slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+    const list = byMeter[mid].slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     for (let i = 1; i < list.length; i++) {
       if (list[i].value < list[i - 1].value) errs.push(`fallender Zählerstand ${mid}: ${list[i - 1].date}→${list[i].date}`);
+      if (list[i].date === list[i - 1].date) errs.push(`doppelte Ablesung ${mid}: ${list[i].date}`);
     }
   }
   for (const y of state.years || []) {
