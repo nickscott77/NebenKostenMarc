@@ -3,6 +3,7 @@
   "use strict";
   var S = window.NKM.store, B = window.NKM.billing;
   var LS_OK = true;
+  var storageWarning = "", recoveryError = "", recoveryRaw = null;
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -21,9 +22,35 @@
   var msg = "", msgErr = false;
 
   function persist() {
-    try { S.saveSnapshot(state); } catch (e) { LS_OK = false; }
+    try {
+      if (!S.saveSnapshot(state)) throw new Error("Browserspeicher nicht verfügbar");
+      LS_OK = true; storageWarning = ""; return true;
+    } catch (e) {
+      LS_OK = false;
+      storageWarning = "Nicht gespeichert: " + e.message + ". Änderungen sind nur im Arbeitsspeicher. Bitte JSON exportieren, bevor Sie die Seite schließen.";
+      return false;
+    }
   }
-  function setMsg(t, err) { msg = t; msgErr = !!err; }
+  function setMsg(t, err) { msg = !err && storageWarning ? "Änderung nur im Arbeitsspeicher." : t; msgErr = !!err; }
+
+  function replaceState(next) {
+    state = next;
+    vKosten.year = state.years[0] ? state.years[0].year : null;
+    vZaehler.sel = "central";
+    if (!state.tenants.some(function (t) { return t.id === billSel.tenant; })) {
+      billSel.tenant = ""; billResult = null;
+    }
+    recoveryError = "";
+    if (persist()) recoveryRaw = null;
+  }
+
+  function downloadJson(text, filename) {
+    var blob = new Blob([text], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
 
   function currentTenant(garageId, date) {
     var d = date || "9999-12-31";
@@ -38,12 +65,25 @@
 
   function render() {
     var app = document.getElementById("app");
+    if (!state) {
+      document.getElementById("app-status").textContent = "Wiederherstellung nötig";
+      app.innerHTML = '<p class="error">' + esc(recoveryError) + "</p>" +
+        (msg ? '<p class="' + (msgErr ? "error" : "") + '">' + esc(msg) + "</p>" : "") + vDaten();
+      bind(app); return;
+    }
+    // Bereits berechnete Rechnungen verwenden immer den aktuellen Datenstand.
+    if (billResult) {
+      try { billResult = B.billTenant(state, billSel.tenant, billSel.from, billSel.to); }
+      catch (e) { billResult = null; billSel.tenant = ""; setMsg(e.message, true); }
+    }
+    document.getElementById("app-status").textContent = LS_OK ? "bereit" : "bereit — nicht gespeichert";
     var errs = S.validate(state);
     var h = '<nav class="tabs noprint">' + ["garagen", "mieter", "zaehler", "kosten", "vermieter", "abrechnung", "daten"]
       .map(function (t) { return '<button data-tab="' + t + '"' + (t === tab ? ' class="active"' : "") + ">" +
         { garagen: "Garagen", mieter: "Mieter", zaehler: "Zähler", kosten: "Kosten", vermieter: "Vermieter", abrechnung: "Abrechnung", daten: "Daten" }[t] + "</button>"; })
       .join("") + "</nav>";
     if (errs.length) h += '<p class="error">Datenfehler: ' + esc(errs.join("; ")) + "</p>";
+    if (storageWarning) h += '<p class="error">' + esc(storageWarning) + "</p>";
     if (msg) h += '<p class="' + (msgErr ? "error" : "") + '">' + esc(msg) + "</p>";
     h += ({ garagen: vGaragen, mieter: vMieter, zaehler: vZaehler, kosten: vKosten, vermieter: vVermieter, abrechnung: vAbrechnung, daten: vDaten })[tab]();
     app.innerHTML = h;
@@ -170,8 +210,10 @@
   }
 
   function vDaten() {
-    return "<h2>Daten</h2><p>Speicherung: localStorage (automatisch)" + (LS_OK ? "" : " — NICHT verfügbar") +
-      "; Wahrheit: JSON-Export.</p><p class='noprint'><button id='btn-export'>Exportieren (JSON-Datei)</button> " +
+    return (state ? "<h2>Daten</h2><p>Speicherung: localStorage (automatisch)" + (LS_OK ? "" : " — NICHT verfügbar") +
+      "; Wahrheit: JSON-Export.</p>" : "<h2>Daten wiederherstellen</h2><p>Die gespeicherten Daten wurden nicht ersetzt. Sichern Sie zuerst die Rohdaten und importieren Sie eine gültige JSON-Datei, oder starten Sie ausdrücklich mit Demo-Daten neu.</p>") +
+      "<p class='noprint'>" + (state ? "<button id='btn-export'>Exportieren (JSON-Datei)</button> " : "") +
+      (recoveryRaw !== null ? "<button id='btn-export-raw'>Rohdaten sichern (JSON-Datei)</button> " : "") +
       "<label>Importieren <input type='file' id='file-import' accept='.json'></label> " +
       "<button id='btn-seed'>Demo-Daten laden</button></p>";
   }
@@ -189,7 +231,10 @@
       if (state.garages.some(function (g) { return g.label === label || g.meterId === meterId; })) {
         setMsg("Garage oder Zähler existiert bereits.", true); render(); return;
       }
-      state.garages.push({ id: uid("g"), label: label, meterId: meterId });
+      var cand = { id: uid("g"), label: label, meterId: meterId };
+      var errs = S.validate(Object.assign({}, state, { garages: state.garages.concat([cand]) }));
+      if (errs.length) { setMsg(errs.join("; "), true); render(); return; }
+      state.garages.push(cand);
       persist(); setMsg("Garage angelegt."); render();
     };
     app.querySelectorAll("[data-del-garage]").forEach(function (b) {
@@ -208,9 +253,12 @@
     if (ft) ft.onsubmit = function (e) {
       e.preventDefault();
       var fd = new FormData(ft);
-      state.tenants.push({ id: uid("t"), firstName: String(fd.get("firstName")).trim(), lastName: String(fd.get("lastName")).trim(),
+      var cand = { id: uid("t"), firstName: String(fd.get("firstName")).trim(), lastName: String(fd.get("lastName")).trim(),
         street: String(fd.get("street")).trim(), houseNo: String(fd.get("houseNo")).trim(),
-        zip: String(fd.get("zip")).trim(), city: String(fd.get("city")).trim() });
+        zip: String(fd.get("zip")).trim(), city: String(fd.get("city")).trim() };
+      var errs = S.validate(Object.assign({}, state, { tenants: state.tenants.concat([cand]) }));
+      if (errs.length) { setMsg(errs.join("; "), true); render(); return; }
+      state.tenants.push(cand);
       persist(); setMsg("Mieter angelegt."); render();
     };
     app.querySelectorAll("[data-del-tenant]").forEach(function (b) {
@@ -262,6 +310,8 @@
       if (!yc) { setMsg("Jahr wählen.", true); render(); return; }
       yc.costs.push({ date: String(fd.get("date")), label: String(fd.get("label")).trim(),
         amount: Number(fd.get("amount")), key: String(fd.get("key")) });
+      var errs = S.validate(state);
+      if (errs.length) { yc.costs.pop(); setMsg(errs.join("; "), true); render(); return; }
       persist(); setMsg("Kosten eingetragen."); render();
     };
     var fy = q("#f-year");
@@ -271,6 +321,8 @@
       var y = Number(fd.get("year"));
       if (state.years.some(function (yy) { return yy.year === y; })) { setMsg("Jahr existiert.", true); render(); return; }
       state.years.push({ year: y, kwhPrice: Number(fd.get("kwhPrice")), baseFeeTotal: 0, costs: [], allocateShared: false });
+      var errs = S.validate(state);
+      if (errs.length) { state.years.pop(); setMsg(errs.join("; "), true); render(); return; }
       vKosten.year = y; persist(); setMsg("Jahr angelegt."); render();
     };
     var fl = q("#f-landlord");
@@ -303,41 +355,54 @@
     if (bp) bp.onclick = function () { window.print(); };
     var be = q("#btn-export");
     if (be) be.onclick = function () {
-      var blob = new Blob([S.exportJson(state)], { type: "application/json" });
-      var a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "nebenkosten-" + ((billSel.from || "").slice(0, 4) || vKosten.year || "export") + ".json";
-      a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      downloadJson(S.exportJson(state), "nebenkosten-" + ((billSel.from || "").slice(0, 4) || vKosten.year || "export") + ".json");
     };
+    var br = q("#btn-export-raw");
+    if (br) br.onclick = function () { downloadJson(recoveryRaw, "nebenkosten-wiederherstellung.json"); };
     var fi = q("#file-import");
     if (fi) fi.onchange = function () {
       var f = fi.files[0]; if (!f) return;
       var rd = new FileReader();
       rd.onload = function () {
-        try { state = S.loadState(String(rd.result)); billResult = null; persist(); setMsg("Importiert: " + f.name); }
+        try {
+          var next = S.loadState(String(rd.result));
+          if (recoveryError && !confirm("Gespeicherte Daten ersetzen? Bitte zuerst die Rohdaten sichern. Der Import ersetzt die bisherigen Daten.")) return;
+          replaceState(next); setMsg("Importiert: " + f.name);
+        }
         catch (err) { setMsg(err.message, true); }
         render();
       };
+      rd.onerror = function () { setMsg("Datei konnte nicht gelesen werden. Die bisherigen Daten bleiben erhalten.", true); render(); };
+      rd.onabort = rd.onerror;
       rd.readAsText(f);
     };
     var bs = q("#btn-seed");
     if (bs) bs.onclick = function () {
-      if (!confirm("Demo-Daten laden? Aktuelle Daten werden ersetzt.")) return;
-      state = S.loadState(JSON.parse(JSON.stringify(window.NKM_SEED)));
-      billResult = null; persist(); setMsg("Demo-Daten geladen."); render();
+      if (!confirm("Demo-Daten laden? Aktuelle Daten werden ersetzt. Bei beschädigten Daten bitte zuerst die Rohdaten sichern.")) return;
+      try {
+        replaceState(S.loadState(JSON.parse(JSON.stringify(window.NKM_SEED))));
+        setMsg("Demo-Daten geladen.");
+      } catch (e) { setMsg(e.message, true); }
+      render();
     };
   }
 
   function boot() {
     try {
       state = S.loadSnapshot();
-    } catch (e) { state = null; }
+    } catch (e) {
+      state = null;
+      recoveryError = "Gespeicherte Daten konnten nicht geladen werden: " + e.message;
+      try { recoveryRaw = window.localStorage.getItem("nkm-v1"); }
+      catch (storageError) { LS_OK = false; }
+      render(); return;
+    }
     if (!state) {
       if (window.NKM_SEED) {
         state = S.loadState(JSON.parse(JSON.stringify(window.NKM_SEED)));
       } else {
-        document.getElementById("app").innerHTML =
-          "<p class='error'>Keine Daten. Bitte seed-data.js einbinden oder JSON importieren.</p>";
+        recoveryError = "Keine Daten. Bitte eine gültige JSON-Datei importieren.";
+        render();
         return;
       }
     }

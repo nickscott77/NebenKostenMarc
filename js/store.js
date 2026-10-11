@@ -6,6 +6,13 @@ function isISODate(s) {
   return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 // Akzeptiert Objekt oder JSON-String. Wirft bei falscher schemaVersion.
 function loadState(input) {
   const state = typeof input === "string" ? JSON.parse(input) : input;
@@ -20,11 +27,31 @@ function loadState(input) {
 // Gibt Array von Fehlerstrings zurück ([] = ok).
 function validate(state) {
   const errs = [];
-  if (!state || typeof state !== "object") return ["kein State-Objekt"];
+  if (!isRecord(state)) return ["kein State-Objekt"];
+  // Erst die Struktur prüfen, bevor map(), Feldzugriffe oder UI-Rendering möglich sind.
+  for (const name of ["garages", "tenants", "occupancy", "readings", "years"]) {
+    if (!Array.isArray(state[name])) errs.push(`${name}: Liste fehlt oder ist ungültig`);
+    else if (state[name].some((item) => !isRecord(item))) errs.push(`${name}: Einträge müssen Objekte sein`);
+  }
+  if (errs.length) return errs;
+  for (const y of state.years) {
+    if (!Array.isArray(y.costs) || y.costs.some((c) => !isRecord(c))) {
+      errs.push(`Kostenliste ungültig (${y.year})`);
+    }
+  }
+  if (state.landlord != null && (!isRecord(state.landlord) ||
+      (state.landlord.bank != null && !isRecord(state.landlord.bank)))) {
+    errs.push("Vermieterdaten oder Bankdaten müssen Objekte sein");
+  }
+  if (errs.length) return errs;
   const garageIds = new Set((state.garages || []).map((g) => g.id));
   const tenantIds = new Set((state.tenants || []).map((t) => t.id));
   for (const g of state.garages || []) {
-    if (!g.id || !g.label || !g.meterId) errs.push(`Garage unvollständig: ${JSON.stringify(g)}`);
+    if (![g.id, g.label, g.meterId].every(isNonEmptyString)) errs.push(`Garage unvollständig: ${JSON.stringify(g)}`);
+    if (g.meterId === "central") errs.push("Zähler-ID central ist für den Zentralzähler reserviert");
+  }
+  for (const t of state.tenants) {
+    if (![t.id, t.firstName, t.lastName].every(isNonEmptyString)) errs.push(`Mieter unvollständig: ${JSON.stringify(t)}`);
   }
   for (const [name, ids] of [["Garage", (state.garages || []).map((g) => g.id)],
       ["Zähler", (state.garages || []).map((g) => g.meterId).concat(["central"])],
@@ -32,7 +59,7 @@ function validate(state) {
     if (new Set(ids).size !== ids.length) errs.push(`doppelte ${name}-ID`);
   }
   // Belegungen: bekannte IDs, Datumsformat, keine Überlappung je Garage.
-  const byGarage = {};
+  const byGarage = Object.create(null);
   for (const o of state.occupancy || []) {
     if (!garageIds.has(o.garageId)) errs.push(`unbekannte Garage: ${o.garageId}`);
     if (!tenantIds.has(o.tenantId)) errs.push(`unbekannter Mieter: ${o.tenantId}`);
@@ -51,7 +78,7 @@ function validate(state) {
     }
   }
   const knownMeters = new Set((state.garages || []).map((g) => g.meterId).concat(["central"]));
-  const byMeter = {};
+  const byMeter = Object.create(null);
   for (const r of state.readings || []) {
     if (!knownMeters.has(r.meterId)) errs.push(`unbekannter Zähler: ${r.meterId}`);
     if (!isISODate(r.date) || !Number.isFinite(r.value) || r.value < 0) {
@@ -67,12 +94,15 @@ function validate(state) {
     }
   }
   for (const y of state.years || []) {
+    if (!Number.isInteger(y.year) || y.year < 1 || y.year > 9999) errs.push("Jahr ungültig");
     if (!Number.isFinite(y.kwhPrice) || y.kwhPrice < 0) errs.push(`kwhPrice ungültig (${y.year})`);
     if (y.baseFeeTotal != null && (!Number.isFinite(y.baseFeeTotal) || y.baseFeeTotal < 0)) errs.push(`Grundgebühr ungültig (${y.year})`);
     for (const c of y.costs || []) {
-      if (!Number.isFinite(c.amount) || c.amount < 0 || !isISODate(c.date)) errs.push(`Kostenposten ungültig: ${c.label}`);
+      if (!Number.isFinite(c.amount) || c.amount < 0 || !isISODate(c.date) ||
+          !isNonEmptyString(c.label) || !isNonEmptyString(c.key)) errs.push(`Kostenposten ungültig: ${c.label}`);
     }
   }
+  if (new Set(state.years.map((y) => y.year)).size !== state.years.length) errs.push("doppeltes Jahr");
   return errs;
 }
 
@@ -84,13 +114,14 @@ function exportJson(state) {
 // Browser-Persistenz (no-op ohne window, damit Node-Tests laufen).
 function saveSnapshot(state) {
   if (typeof window === "undefined" || !window.localStorage) return false;
+  loadState(state);
   window.localStorage.setItem(LS_KEY, exportJson(state));
   return true;
 }
 function loadSnapshot() {
   if (typeof window === "undefined" || !window.localStorage) return null;
   const raw = window.localStorage.getItem(LS_KEY);
-  return raw ? loadState(raw) : null;
+  return raw !== null ? loadState(raw) : null;
 }
 
 if (typeof window !== "undefined") {
